@@ -1,0 +1,15 @@
+{
+  "name": "paa-conformance-validator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Language-neutral contract and conformance validator for the Personal AI Architecture",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "paa-validate": "bin/paa-validate.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
