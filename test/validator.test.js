@@ -29,19 +29,41 @@ components:
   "specs/schemas/tool-definition.json": JSON.stringify({ type: "object", required: ["name", "description", "parameters"] })
 };
 
-function writeContractFixture(root, commit = "a".repeat(40), commands = []) {
-  for (const [relative, content] of Object.entries(CONTRACTS)) {
+const CURRENT_CONTRACTS = Object.fromEntries(Object.entries(CONTRACTS).map(([relative, content]) => {
+  const currentPath = relative.replace(/^specs\//, "contracts/");
+  if (relative.endsWith("gateway-engine.yaml")) {
+    return [currentPath, "/agent-loop/chat:\nAgentLoopRequest:\nRequestMetadata:\nSSEStream:\nauth_context:\n"];
+  }
+  return [currentPath, content];
+}));
+for (const [name, required] of Object.entries({
+  "auth-context": ["actor", "authentication_id", "authenticated_at", "correlation_id"],
+  "authentication-result": ["authenticated", "reason", "correlation_id"],
+  "authorization-request": ["actor_id", "resource", "action", "correlation_id"],
+  "authorization-result": ["allowed", "reason", "audit_id", "correlation_id"],
+  "approval-request": ["request_id", "tool_name", "summary", "status", "created_at", "expires_at"],
+  "approval-decision": ["request_id", "decision", "decided_at"],
+  "audit-record": ["id", "occurred_at", "event", "actor_id", "action", "result", "correlation_id"]
+})) {
+  CURRENT_CONTRACTS[`contracts/schemas/${name}.json`] = JSON.stringify({ type: "object", required });
+}
+CURRENT_CONTRACTS["contracts/schemas/tool-definition.json"] = JSON.stringify({
+  type: "object", required: ["name", "description", "parameters", "source", "visibility"]
+});
+
+function writeContractFixture(root, commit = "a".repeat(40), commands = [], contracts = CONTRACTS) {
+  for (const [relative, content] of Object.entries(contracts)) {
     for (const prefix of ["vendor/paa-contracts", "."]) {
       const file = path.join(root, prefix, relative);
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, content);
     }
   }
-  const sha256 = Object.fromEntries(Object.entries(CONTRACTS).map(([relative, content]) => [relative, crypto.createHash("sha256").update(content).digest("hex")]));
+  const sha256 = Object.fromEntries(Object.entries(contracts).map(([relative, content]) => [relative, crypto.createHash("sha256").update(content).digest("hex")]));
   fs.writeFileSync(path.join(root, "paa.lock.json"), JSON.stringify({
     repository: "https://github.com/Personal-AI-Architecture/the-architecture.git",
     ref: "main", commit, source_root: "vendor/paa-contracts",
-    contract_files: Object.keys(CONTRACTS), sha256
+    contract_files: Object.keys(contracts), sha256
   }));
   fs.writeFileSync(path.join(root, "paa.target.json"), JSON.stringify({ name: "fixture", language: "test", commands }));
 }
@@ -52,9 +74,9 @@ function fixture(commands = []) {
   return root;
 }
 
-function gitSourceFixture() {
+function gitSourceFixture(contracts = CONTRACTS) {
   const source = fs.mkdtempSync(path.join(os.tmpdir(), "paa-validator-source-"));
-  for (const [relative, content] of Object.entries(CONTRACTS)) {
+  for (const [relative, content] of Object.entries(contracts)) {
     const file = path.join(source, relative);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, content);
@@ -123,4 +145,34 @@ test("validator reports failed target commands", async () => {
   const result = await runValidation({ manifestPath: path.join(root, "paa.target.json"), runContracts: false });
   assert.equal(result.errors.some((error) => error.includes("Target command failed: intentional failure (exit 7)")), true);
   assert.equal(result.checks.some((check) => check.name === "target command: intentional failure" && !check.ok), true);
+});
+
+test("validator accepts the canonical contract layout at the selected source ref", async () => {
+  const { source, commit } = gitSourceFixture(CURRENT_CONTRACTS);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "paa-validator-current-target-"));
+  writeContractFixture(root, commit, [], CURRENT_CONTRACTS);
+  const result = await runValidation({
+    manifestPath: path.join(root, "paa.target.json"), sourceCheckout: source,
+    sourceRef: "HEAD", runCommands: false
+  });
+  assert.deepEqual(result.errors, []);
+});
+
+test("validator rejects an old pin when the selected source ref has moved contracts", async () => {
+  const { source, commit } = gitSourceFixture();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "paa-validator-old-target-"));
+  writeContractFixture(root, commit);
+  for (const relative of Object.keys(CONTRACTS)) fs.rmSync(path.join(source, relative));
+  for (const [relative, content] of Object.entries(CURRENT_CONTRACTS)) {
+    const file = path.join(source, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, content);
+  }
+  execFileSync("git", ["-C", source, "add", "-A"]);
+  execFileSync("git", ["-C", source, "commit", "-qm", "move contracts"]);
+  const result = await runValidation({
+    manifestPath: path.join(root, "paa.target.json"), sourceCheckout: source,
+    sourceRef: "HEAD", runCommands: false
+  });
+  assert.equal(result.errors.some((error) => error.includes("Source ref HEAD contract file set differs")), true);
 });
