@@ -11,12 +11,14 @@ function readArgument(name) {
 async function main() {
   const target = readArgument("--target");
   const sourceCheckout = readArgument("--source-checkout");
+  const sourceRef = readArgument("--source-ref");
+  const commandImage = readArgument("--docker-image");
   const commandsOnly = process.argv.includes("--commands-only");
   const contractsOnly = process.argv.includes("--contracts-only");
 
   if (!target || (commandsOnly && contractsOnly)) {
     console.error(
-      "Usage: paa-validate --target <paa.target.json> [--source-checkout <paa checkout>] [--commands-only|--contracts-only]"
+      "Usage: paa-validate --target <paa.target.json> [--source-checkout <paa checkout>] [--source-ref <accepted ref>] [--docker-image <image>] [--commands-only|--contracts-only]"
     );
     process.exit(2);
   }
@@ -25,6 +27,8 @@ async function main() {
   const result = await runValidation({
     manifestPath,
     sourceCheckout: sourceCheckout ? path.resolve(process.cwd(), sourceCheckout) : undefined,
+    sourceRef,
+    commandImage,
     runContracts: !commandsOnly,
     runCommands: !contractsOnly
   });
