@@ -7,7 +7,10 @@
     "node": ">=20"
   },
   "bin": {
-    "paa-validate": "bin/paa-validate.js"
+    "paa-validate": "bin/paa-validate.js",
+    "paa-live": "bin/paa-live.js",
+    "paa-live-target": "bin/paa-live-target.js",
+    "paa-provider-target": "bin/paa-provider-target.js"
   },
   "scripts": {
     "test": "node --test test/*.test.js"

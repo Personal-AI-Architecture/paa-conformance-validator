@@ -4,6 +4,33 @@ Shared, language-neutral validator for the Personal AI Architecture contract
 and template acceptance commands. It is intentionally dependency-free and
 expects each implementation template to provide a `paa.target.json` manifest.
 
+## Live Gateway check
+
+`paa-live-target` starts the target's `live.start` command with a temporary owner
+token and memory root. It checks unauthenticated and spoofed requests, both PAA
+credential headers, the request size limit, streamed event discriminators,
+conversation persistence, list filters and pagination, then restarts the server
+and reads the saved conversation again. A failure exits nonzero.
+
+```bash
+node bin/paa-live-target.js --target ../python-architecture-template/paa.target.json
+node bin/paa-live-target.js --target ../go-architecture-template/paa.target.json --docker-image golang:1.22-alpine
+node bin/paa-live-target.js --target ../java-architecture-template/paa.target.json --docker-image maven:3.9-eclipse-temurin-17-alpine
+```
+
+Use `node bin/paa-live.js --url http://127.0.0.1:8000 --api-key <test-token>`
+to check a service already running. The runner exercises a bounded text journey;
+it is not a full PAA conformance verdict. Contract pin checks and each target's
+native suites remain separate required gates.
+
+`paa-provider-target` repeats the live journey with an OpenAI-compatible
+fixture server, selecting the provider and model through configuration. It
+checks that the fixture's response reaches the Gateway stream:
+
+```bash
+node bin/paa-provider-target.js --target ../python-architecture-template/paa.target.json
+```
+
 From this workspace, validate any template against its pinned local PAA source
 checkout with:
 
