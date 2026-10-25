@@ -24,8 +24,11 @@ it is not a full PAA conformance verdict. Contract pin checks and each target's
 native suites remain separate required gates.
 
 `paa-provider-target` repeats the live journey with an OpenAI-compatible
-fixture server, selecting the provider and model through configuration. It
-checks that the fixture's response reaches the Gateway stream:
+fixture server. For targets declaring `live.preference_path`, it updates owner
+preferences on the running server and checks two models and two provider
+profiles without restart, saved reply provenance, rejection of an unknown
+model without fallback, and preference persistence after restart. Older
+targets without that manifest field retain the startup selection check:
 
 ```bash
 node bin/paa-provider-target.js --target ../python-architecture-template/paa.target.json
