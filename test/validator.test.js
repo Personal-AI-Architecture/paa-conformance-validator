@@ -20,7 +20,7 @@ components:
     Conversation:
     ClientSSEStream:
 `,
-  "specs/openapi/gateway-engine.yaml": "/engine/chat:\nEngineRequest:\nRequestMetadata:\nSSEStream:\nX-Actor-ID\nX-Actor-Permissions\n",
+  "specs/openapi/gateway-agent-loop.yaml": "/agent-loop/chat:\nAgentLoopRequest:\nRequestMetadata:\nSSEStream:\nX-Actor-ID\nX-Actor-Permissions\n",
   "specs/openapi/model-api.yaml": "/completions:\nCompletionRequest:\nCompletionStream:\n",
   "specs/schemas/configuration.json": JSON.stringify({ type: "object", required: ["memory_root", "provider_adapter", "auth_mode", "tool_sources"] }),
   "specs/schemas/identity.json": JSON.stringify({ type: "object", required: ["id", "type", "display_name", "status", "created"] }),
@@ -31,7 +31,7 @@ components:
 
 const CURRENT_CONTRACTS = Object.fromEntries(Object.entries(CONTRACTS).map(([relative, content]) => {
   const currentPath = relative.replace(/^specs\//, "contracts/");
-  if (relative.endsWith("gateway-engine.yaml")) {
+  if (relative.endsWith("gateway-agent-loop.yaml")) {
     return [currentPath, "/agent-loop/chat:\nAgentLoopRequest:\nRequestMetadata:\nSSEStream:\nauth_context:\n"];
   }
   return [currentPath, content];
